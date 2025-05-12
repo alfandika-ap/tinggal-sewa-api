@@ -29,21 +29,14 @@ class CustomerLoginView(APIView):
         serializer = CustomerLoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            
-            # Get or create token
             token, created = Token.objects.get_or_create(user=user)
-            
-            # Get customer profile
             customer_serializer = CustomerSerializer(user.customer)
-            
-            # Return token and customer data
             response_data = {
                 'token': f"{token.key}",
                 'customer': customer_serializer.data
             }
             return Response(response_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     
 class CustomerProfileView(APIView):
     """
