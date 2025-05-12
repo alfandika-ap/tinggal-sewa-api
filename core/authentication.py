@@ -3,4 +3,4 @@ from rest_framework.exceptions import AuthenticationFailed
 
 
 class BearerTokenAuthentication(TokenAuthentication):
-    keyword = 'Bearer' 
+    keyword = "Bearer"

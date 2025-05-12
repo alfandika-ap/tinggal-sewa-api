@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from rest_framework import serializers
+
 from .models import Customer
 
 
@@ -8,7 +9,7 @@ class CustomerRegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150, required=True)
     email = serializers.EmailField(required=True)
     password = serializers.CharField(
-        write_only=True, required=True, style={'input_type': 'password'}
+        write_only=True, required=True, style={"input_type": "password"}
     )
     fullname = serializers.CharField(max_length=255, required=True)
     phone = serializers.CharField(max_length=255, required=True)
@@ -26,15 +27,15 @@ class CustomerRegisterSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
+            username=validated_data["username"],
+            email=validated_data["email"],
+            password=validated_data["password"],
         )
         customer = Customer.objects.create(
             user=user,
-            fullname=validated_data['fullname'],
-            phone=validated_data['phone'],
-            address=validated_data['address']
+            fullname=validated_data["fullname"],
+            phone=validated_data["phone"],
+            address=validated_data["address"],
         )
         return customer
 
@@ -42,21 +43,23 @@ class CustomerRegisterSerializer(serializers.Serializer):
 class CustomerLoginSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150, required=True)
     password = serializers.CharField(
-        write_only=True, required=True, style={'input_type': 'password'}
+        write_only=True, required=True, style={"input_type": "password"}
     )
 
     def validate(self, data):
-        username = data.get('username')
-        password = data.get('password')
+        username = data.get("username")
+        password = data.get("password")
 
         if username and password:
             user = authenticate(username=username, password=password)
             if user:
-                if not hasattr(user, 'customer'):
+                if not hasattr(user, "customer"):
                     raise serializers.ValidationError("User is not a customer")
-                data['user'] = user
+                data["user"] = user
             else:
-                raise serializers.ValidationError("Unable to login with provided credentials")
+                raise serializers.ValidationError(
+                    "Unable to login with provided credentials"
+                )
         else:
             raise serializers.ValidationError("Must provide username and password")
 
@@ -64,10 +67,19 @@ class CustomerLoginSerializer(serializers.Serializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
-    email = serializers.EmailField(source='user.email', read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = Customer
-        fields = ['id', 'username', 'email', 'fullname', 'phone', 'address', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at'] 
+        fields = [
+            "id",
+            "username",
+            "email",
+            "fullname",
+            "phone",
+            "address",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

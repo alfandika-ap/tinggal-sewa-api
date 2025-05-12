@@ -1,5 +1,6 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+
 from core.models import BaseModel
 
 
@@ -12,4 +13,3 @@ class Customer(BaseModel):
 
     def __str__(self):
         return self.fullname
-    

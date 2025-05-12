@@ -1,7 +1,10 @@
-from openai import OpenAI
 import os
+
 from dotenv import load_dotenv
+from openai import OpenAI
+
 from core.api.prompt_manager import PromptManager
+
 from .models import ChatMessages
 
 load_dotenv()
@@ -40,6 +43,7 @@ FORMAT RESPONS:
 Jangan lupa untuk menanyakan preferensi atau kebutuhan spesifik pengguna jika mereka belum memberikan informasi yang cukup untuk rekomendasi properti yang baik.
 """
 
+
 def chat(message, user_id):
     ChatMessages.objects.create(user_id=user_id, content=message, role="user")
     chats = ChatMessages.objects.filter(user_id=user_id)[:20]
@@ -47,25 +51,26 @@ def chat(message, user_id):
     messages = []
     for chat in chats:
         messages.append({"role": chat.role, "content": chat.content})
-    
+
     full_response = ""
     for chunk in stream_response(messages):
         if chunk is not None:
-            full_response += chunk  
+            full_response += chunk
             yield chunk
 
     print(f"Response: {full_response}")
-    ChatMessages.objects.create(user_id=user_id, content=full_response, role="assistant")
+    ChatMessages.objects.create(
+        user_id=user_id, content=full_response, role="assistant"
+    )
+
 
 def stream_response(messages):
     pm = PromptManager()
     pm.add_message("system", system_prompt)
     pm.add_messages(messages)
     response = pm.generate(stream=True)
-    
+
     for chunk in response:
         delta = chunk.choices[0].delta
         if hasattr(delta, "content") and delta.content is not None:
             yield delta.content
-  
- 

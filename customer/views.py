@@ -1,17 +1,20 @@
+from django.contrib.auth.models import User
 from django.shortcuts import render
 from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
-from .serializers import CustomerRegisterSerializer, CustomerLoginSerializer, CustomerSerializer
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .serializers import (CustomerLoginSerializer, CustomerRegisterSerializer,
+                          CustomerSerializer)
 
 
 class CustomerRegisterView(APIView):
     """
     Register a new customer
     """
+
     def post(self, request):
         serializer = CustomerRegisterSerializer(data=request.data)
         if serializer.is_valid():
@@ -25,25 +28,28 @@ class CustomerLoginView(APIView):
     """
     Login for customers
     """
+
     def post(self, request):
         serializer = CustomerLoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.validated_data['user']
+            user = serializer.validated_data["user"]
             token, created = Token.objects.get_or_create(user=user)
             customer_serializer = CustomerSerializer(user.customer)
             response_data = {
-                'token': f"{token.key}",
-                'customer': customer_serializer.data
+                "token": f"{token.key}",
+                "customer": customer_serializer.data,
             }
             return Response(response_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 class CustomerProfileView(APIView):
     """
     Get customer profile
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         customer = request.user.customer
         serializer = CustomerSerializer(customer)
