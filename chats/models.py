@@ -10,3 +10,4 @@ class ChatMessages(BaseModel):
     role = models.CharField(max_length=255)
     content = models.TextField()
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token_usage = models.IntegerField(default=0)

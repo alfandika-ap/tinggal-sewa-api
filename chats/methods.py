@@ -3,9 +3,12 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from core.api.prompt_manager import PromptManager
+from core.ai.prompt_manager import PromptManager
+from core.ai.tokenizer import count_token
 
 from .models import ChatMessages
+
+import json
 
 load_dotenv()
 
@@ -45,7 +48,7 @@ Jangan lupa untuk menanyakan preferensi atau kebutuhan spesifik pengguna jika me
 
 
 def chat(message, user_id):
-    ChatMessages.objects.create(user_id=user_id, content=message, role="user")
+    user_message = ChatMessages.objects.create(user_id=user_id, content=message, role="user")
     chats = ChatMessages.objects.filter(user_id=user_id)[:20]
 
     messages = []
@@ -56,11 +59,15 @@ def chat(message, user_id):
     for chunk in stream_response(messages):
         if chunk is not None:
             full_response += chunk
-            yield chunk
+            yield f"data: {chunk}\n\n"
 
-    print(f"Response: {full_response}")
+    system_prompt_token = count_token(system_prompt)
+    messages_token = count_token(json.dumps(messages))
+    assistant_message_token = count_token(full_response)
+    token_usage = system_prompt_token + messages_token + assistant_message_token
+    print(f"token usage: {system_prompt_token + messages_token + assistant_message_token}")
     ChatMessages.objects.create(
-        user_id=user_id, content=full_response, role="assistant"
+        user_id=user_id, content=full_response, role="assistant", token_usage=token_usage
     )
 
 

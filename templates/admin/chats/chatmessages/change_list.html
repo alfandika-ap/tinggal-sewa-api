@@ -1,0 +1,29 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block filters %}
+    {% if token_usage_summary is not None %}
+        <div class="bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-700">
+            <div class="px-6 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-300 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.1 14.56l-1.41-1.41-2.12 2.12-1.26-1.26 2.12-2.12-1.41-1.41-2.12 2.12-1.27-1.27 2.12-2.12-1.41-1.41-2.12 2.12L9.97 8.68l2.12-2.12-1.41-1.41-2.12 2.12-1.05-1.05c-.59-.59-1.54-.59-2.12 0L3 8.62l12.38 12.38 2.22-2.22c.59-.59.59-1.54 0-2.12l-1.06-1.05 2.12-2.12-1.41-1.41-2.12 2.12-1.27-1.27 2.12-2.12-1.41-1.41-2.12 2.12-1.26-1.26 2.12-2.12z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                                {% trans "Total Token Usage" %}{% if request.GET.user__id__exact %} ({% trans "filtered" %}){% endif %}
+                            </div>
+                            <div class="text-2xl font-bold text-gray-800 dark:text-white">
+                                {{ token_usage_summary }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    {{ block.super }}
+{% endblock %} 
