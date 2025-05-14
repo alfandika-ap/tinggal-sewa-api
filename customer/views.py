@@ -45,7 +45,7 @@ class CustomerLoginView(APIView):
 
 class CustomerProfileView(APIView):
     """
-    Get customer profile
+    Get and update customer profile
     """
 
     permission_classes = [IsAuthenticated]
@@ -54,3 +54,15 @@ class CustomerProfileView(APIView):
         customer = request.user.customer
         serializer = CustomerSerializer(customer)
         return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    def put(self, request):
+        customer = request.user.customer
+        print("Request data:", request.data)  # Debug log
+        serializer = CustomerSerializer(customer, data=request.data, partial=True)
+        if serializer.is_valid():
+            print("Validated data:", serializer.validated_data)  # Debug log
+            updated_customer = serializer.save()
+            print("Updated customer:", updated_customer.fullname, updated_customer.phone, updated_customer.address)  # Debug log
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        print("Serializer errors:", serializer.errors)  # Debug log
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

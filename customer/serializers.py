@@ -67,8 +67,8 @@ class CustomerLoginSerializer(serializers.Serializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="user.username", read_only=True)
-    email = serializers.EmailField(source="user.email", read_only=True)
+    username = serializers.CharField(source="user.username")
+    email = serializers.EmailField(source="user.email")
 
     class Meta:
         model = Customer
@@ -83,3 +83,21 @@ class CustomerSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+        
+    def update(self, instance, validated_data):
+        # Update user fields
+        user_data = validated_data.pop('user', {})
+        if user_data:
+            user = instance.user
+            if 'username' in user_data:
+                user.username = user_data['username']
+            if 'email' in user_data:
+                user.email = user_data['email']
+            user.save()
+            
+        # Update customer fields
+        instance.fullname = validated_data.get('fullname', instance.fullname)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.address = validated_data.get('address', instance.address)
+        instance.save()
+        return instance
