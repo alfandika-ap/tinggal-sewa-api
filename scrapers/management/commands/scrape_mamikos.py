@@ -2,19 +2,13 @@ import asyncio
 from crawl4ai import AsyncWebCrawler, BrowserConfig, ProxyConfig
 
 from django.core.management.base import BaseCommand
-from scrapers.models import Property
+from scrapers.models import PropertyList
 
 import chromadb
 from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
-from core.ai.proxy import config
 from core.ai.scraper import client
 
-proxy = ProxyConfig(**config)
-
-config = BrowserConfig(
-    proxy=proxy
-)
 
 class Command(BaseCommand):
     help = "Scrape properties from mamikos.com"
@@ -26,37 +20,42 @@ class Command(BaseCommand):
 
 async def main():
     chroma = await chromadb.AsyncHttpClient("localhost", 8010)
+    await chroma.delete_collection("property_data")
     collection = await chroma.create_collection(
         name="property_data",
         embedding_function=ONNXMiniLM_L6_V2(),
     )
-    async with AsyncWebCrawler(config=config) as crawler:
+    async with AsyncWebCrawler() as crawler:
         result = await crawler.arun("https://mamikos.com/cari?rent=2&sort=price,-&price=10000-20000000&singgahsini=0")
 
-        res = await client.chat.completions.create(
-            model="gpt-4o-mini",
+        res = client.beta.chat.completions.parse(
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": f"Extract all properties from this text: {result}"},
-                {"role": "user", "content": result if isinstance(result, str) else result.markdown},
+                {"role": "system", "content": f"Extract all properties based on given text"},
+                {"role": "user", "content": result.markdown},
             ],
-            response_format="json",
+            response_format=PropertyList,
         )
 
-        properties = res.choices[0].message.parsed
+        property_list = res.choices[0].message.parsed
+        properties = property_list.properties[:4]
 
         for prop in properties:
-            result = await crawler.arun(prop["url"])
+            print("Scraping:", prop.title)
+            if not prop.url:
+                continue
+            result = await crawler.arun(prop.url)
 
-            res = await client.chat.completions.create(
-                model="gpt-4o-mini",
+            res = client.beta.chat.completions.parse(
+                model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": f"Extract all properties from this text: {result}"},
-                    {"role": "user", "content": result if isinstance(result, str) else result.markdown},
+                    {"role": "system", "content": f"Extract all properties based on given text"},
+                    {"role": "user", "content": result.markdown},
                 ],
-                response_format="json",
+                response_format=PropertyList,
             )
 
-            property_data = res.choices[0].message.parsed
+            property_data = res.choices[0].message.parsed.properties[0]
 
             await collection.add(
                 documents=[str(property_data.model_dump())],
