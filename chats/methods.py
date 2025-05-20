@@ -55,7 +55,7 @@ Jangan lupa untuk menanyakan preferensi atau kebutuhan spesifik pengguna jika me
 
 def chat(message, user_id):
     user_message = ChatMessages.objects.create(user_id=user_id, content=message, role="user")
-    chats = ChatMessages.objects.filter(user_id=user_id).order_by('created_at')[:20][::-1]
+    chats = ChatMessages.objects.filter(user_id=user_id).order_by('created_at')[:20]
     user_info = User.objects.get(id=user_id)
     messages = [{"role": chat.role, "content": chat.content} for chat in chats]
 
@@ -63,7 +63,10 @@ def chat(message, user_id):
     for chunk in stream_response(messages, user_info):
         if chunk is not None:
             full_response += chunk
-            yield f"data: {chunk}\n\n"
+            line = json.dumps({"content": chunk})
+            yield f"data: {line}\n\n"
+
+    yield "data: [DONE]\n\n"
 
     # hitung token dll
     system_prompt_token = count_token(system_prompt)
