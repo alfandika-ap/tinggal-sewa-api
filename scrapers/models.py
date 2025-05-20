@@ -1,15 +1,16 @@
 from pydantic import BaseModel
-from typing import List
 
-
-class PropertyData(BaseModel):
-    property_id: str
+class Kost(BaseModel):
     title: str
-    price: float | None = None
-    location: str | None = None
-    rules: str | None = None
-    room_specs: str | None = None
+    address: str
+    city: str
+    province: str
+    description: str
+    price: str
+    facilities: str
+    rules: str
+    contact: str
     url: str
 
-class PropertyList(BaseModel):
-    properties: List[PropertyData]
+class KostList(BaseModel):
+    kosts: list[Kost]
