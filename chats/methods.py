@@ -87,7 +87,6 @@ def stream_response(messages, user_info: User):
         'is_active': user_info.is_active,
         'date_joined': str(user_info.date_joined),
         'last_login': str(user_info.last_login) if user_info.last_login else None,
-        # Add any other fields you need
     }
     print(json.dumps(ser_data))
     pm = PromptManager()
