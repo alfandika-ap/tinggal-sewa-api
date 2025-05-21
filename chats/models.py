@@ -11,3 +11,4 @@ class ChatMessages(BaseModel):
     content = models.TextField()
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     token_usage = models.IntegerField(default=0)
+    function_name = models.CharField(max_length=255, null=True, blank=True)

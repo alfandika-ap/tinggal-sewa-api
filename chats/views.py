@@ -12,7 +12,7 @@ from .models import ChatMessages
 class ChatMessagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessages
-        fields = ["id", "role", "content", "created_at", "updated_at"]
+        fields = ["id", "role", "content", "function_name", "created_at", "updated_at"]
 
 
 class ChatView(APIView):

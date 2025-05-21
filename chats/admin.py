@@ -8,7 +8,7 @@ from .models import ChatMessages
 # Register your models here.
 @admin.register(ChatMessages)
 class ChatMessagesAdmin(ModelAdmin):
-    list_display = ("id", "user", "content", "role", "token_usage_display", "created_at", "updated_at")
+    list_display = ("id", "user", "content", "role", "token_usage_display", "function_name", "created_at", "updated_at")
     search_fields = ("id", "user__username", "token_usage", "created_at", "updated_at")
     list_filter = ("user", "created_at", "updated_at")
     

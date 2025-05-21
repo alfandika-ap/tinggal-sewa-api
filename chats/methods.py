@@ -3,8 +3,10 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from chats.tools import get_weather
 from core.ai.prompt_manager import PromptManager
 from core.ai.tokenizer import count_token
+from chats.openai_functions import function_get_weather_schema
 
 from django.contrib.auth.models import User
 
@@ -20,64 +22,106 @@ openai_client = OpenAI(api_key=API_KEY)
 
 system_prompt = """
 Kamu adalah asisten AI 'Tinggal Sewa', platform chat untuk membantu pengguna menemukan kos-kosan dan rumah sewa di seluruh Indonesia.
+Kamu juga mempunyai tool untuk mengetahui cuaca di suatu kota.
 
-Kamu akan mmelayani user dengan informasi dibawah ini:
+Kamu akan melayani user dengan informasi dibawah ini:
 {user_info}
 
-PERAN:
-- Bantu pengguna menemukan properti yang sesuai dengan preferensi mereka (lokasi, harga, fasilitas, dll)
-- Berikan informasi detail tentang properti, lingkungan sekitar, dan fasilitas terdekat
-- Jawab pertanyaan seputar properti dengan akurat dan informatif
-- Selalu ramah, sopan, dan profesional
+JIKA ADA MARKDOWN JANGAN DI PUTUSIN, KARENA MARKDOWN ITU BISA DI BACA OLEH USER
 
-KEMAMPUAN:
-- Memahami preferensi pengguna tentang lokasi (dekat kampus/kantor), rentang harga, dan fasilitas
-- Memberikan rekomendasi properti berdasarkan kriteria pengguna
-- Menyediakan informasi tentang lingkungan sekitar (keamanan, kebersihan, makanan terdekat)
-- Membantu pengguna terhubung dengan pemilik properti
-
-BATASAN:
-- Jangan memberikan informasi yang tidak berkaitan dengan properti atau kebutuhan hunian
-- Jangan menjanjikan properti yang tidak ada dalam database
-- Jangan membagikan data pribadi pengguna atau pemilik properti tanpa izin
-- Jangan terlibat dalam pembicaraan yang tidak pantas atau di luar konteks properti
-
-FORMAT RESPONS:
-- Ucapkan selamat datang dengan nama pengguna
-- Selalu menggunakan Bahasa Indonesia kecuali pengguna meminta bahasa lain
-- Berikan respons singkat, padat, dan informatif
-- Saat merekomendasikan properti, sertakan informasi: nama, lokasi, harga, dan fasilitas utama
-- Tawarkan opsi kontak dengan pemilik properti bila pengguna tertarik
-
-Jangan lupa untuk menanyakan preferensi atau kebutuhan spesifik pengguna jika mereka belum memberikan informasi yang cukup untuk rekomendasi properti yang baik.
 """
+
+def handle_function_call(function_call):
+    name = function_call["name"]
+    arguments = json.loads(function_call["arguments"])
+    
+    if name == "get_weather":
+        city = arguments.get("city", "")
+        return get_weather(city)
+    return "Function tidak dikenali"
 
 
 def chat(message, user_id):
-    user_message = ChatMessages.objects.create(user_id=user_id, content=message, role="user")
+    ChatMessages.objects.create(
+        user_id=user_id,
+        content=message,
+        role="user",
+        function_name=None
+    )
+
     chats = ChatMessages.objects.filter(user_id=user_id).order_by('created_at')[:20]
     user_info = User.objects.get(id=user_id)
-    messages = [{"role": chat.role, "content": chat.content} for chat in chats]
 
-    full_response = ""
+    messages = []
+
+    for chat in chats:
+        content = chat.content
+        name = getattr(chat, "function_name", None)
+
+        try:
+            content_obj = json.loads(content)
+            if isinstance(content_obj, dict) and "data" in content_obj:
+                content = content_obj["data"]
+                if "name" in content_obj:
+                    name = content_obj["name"]
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        msg = {
+            "role": chat.role,
+            "content": content
+        }
+
+        if chat.role == "function":
+            msg["name"] = name or "unknown_function"
+
+        messages.append(msg)
+
+    collected = {
+        "text": "",
+        "function_result": None
+    }
+
     for chunk in stream_response(messages, user_info):
-        if chunk is not None:
-            full_response += chunk
-            line = json.dumps({"content": chunk})
-            yield f"data: {line}\n\n"
+        yield f"data: {chunk}\n\n"
+
+        try:
+            parsed = json.loads(chunk)
+
+            if parsed["type"] == "text":
+                collected["text"] += parsed["data"]
+
+            elif parsed["type"] == "function_result":
+                collected["function_result"] = {
+                    "name": parsed['data']['name'],
+                    "data": parsed['data']['result']
+                }
+
+        except json.JSONDecodeError:
+            continue
 
     yield "data: [DONE]\n\n"
 
-    # hitung token dll
-    system_prompt_token = count_token(system_prompt)
-    messages_token = count_token(json.dumps(messages))
-    assistant_message_token = count_token(full_response)
-    token_usage = system_prompt_token + messages_token + assistant_message_token
+    if collected["text"]:
+        ChatMessages.objects.create(
+            user_id=user_id,
+            content=json.dumps({"type": "text", "data": collected["text"]}),
+            role="assistant",
+            token_usage=0,
+            function_name=None
+        )
 
-    ChatMessages.objects.create(
-        user_id=user_id, content=full_response, role="assistant", token_usage=token_usage
-    )
-
+    if collected["function_result"]:
+        ChatMessages.objects.create(
+            user_id=user_id,
+            content=json.dumps({
+                "type": "function_result",
+                "name": collected["function_result"]["name"],
+                "data": collected["function_result"]["data"],
+            }),
+            role="function",
+            function_name=collected["function_result"]["name"],
+        )
 
 
 def stream_response(messages, user_info: User):
@@ -91,14 +135,55 @@ def stream_response(messages, user_info: User):
         'date_joined': str(user_info.date_joined),
         'last_login': str(user_info.last_login) if user_info.last_login else None,
     }
-    print(json.dumps(ser_data))
+
     pm = PromptManager()
     pm.add_message("system", system_prompt.format(user_info=json.dumps(ser_data)))
     pm.add_messages(messages)
-    response = pm.generate(stream=True)
+    response = pm.generate(stream=True, functions=[function_get_weather_schema])
+
+    function_response = None
+    function_name = None
+    is_function_calling = False
+    has_output = False
 
     for chunk in response:
         delta = chunk.choices[0].delta
-        content = getattr(delta, "content", None)
-        if content:
-            yield content
+
+        if getattr(delta, "tool_calls", None):
+            is_function_calling = True
+            for tool_call in delta.tool_calls:
+                fc = tool_call.function
+                if fc.name:
+                    function_name = fc.name
+                if fc.arguments:
+                    if function_response is None:
+                        function_response = ""
+                    function_response += fc.arguments
+            continue
+
+        if getattr(delta, "content", None) and not is_function_calling:
+            content = delta.content
+            yield json.dumps({"type": "text", "data": content})
+            has_output = True
+
+    # Jalankan dan kirim hasil function_call jika ada
+    if function_response:
+        result = handle_function_call({
+            "name": function_name,
+            "arguments": function_response,
+        })
+
+        yield json.dumps({
+            "type": "function_result",
+            "data": {
+                "name": function_name,
+                "result": result
+            }
+        })
+        has_output = True
+
+    if not has_output:
+        yield json.dumps({"type": "text", "data": "(no response)"})
+
+    yield json.dumps({"type": "done"})
+
