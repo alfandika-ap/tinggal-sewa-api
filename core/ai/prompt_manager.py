@@ -28,10 +28,18 @@ class PromptManager:
     def get_prompt(self):
         return {"model": self.model, "messages": self.messages}
 
-    def generate(self, stream=False):
-        response = openai_client.chat.completions.create(
-            model=self.model, messages=self.messages, stream=stream
-        )
+    def generate(self, stream=False, functions=[]):
+        kwargs = {
+            "model": self.model,
+            "messages": self.messages,
+            "stream": stream,
+        }
+
+        if functions:
+            kwargs["tools"] = [{"type": "function", "function": f} for f in functions]
+            kwargs["tool_choice"] = "auto"  # penting agar model bisa memilih
+
+        response = openai_client.chat.completions.create(**kwargs)
 
         if stream:
             return response
