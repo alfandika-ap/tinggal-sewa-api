@@ -9,6 +9,7 @@ from chats.tools import search_properties_metadata
 
 from .methods import chat, search_properties
 from .models import ChatMessages
+import json
 
 
 class ChatMessagesSerializer(serializers.ModelSerializer):
@@ -46,9 +47,9 @@ class SearchProperties(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        query = request.data.get("query")
-        metadata = request.data.get("metadata")
-        response = search_properties(query, request.user.id, metadata)
+        query_texts = request.data.get("query_texts")
+        where = request.data.get("where")
+        response = search_properties(query_texts=query_texts, where=where)
         return Response(response)
     
 class TestFunctionSearchProperties(APIView):
