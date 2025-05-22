@@ -1,6 +1,5 @@
 from typing import Optional, Dict
 from pydantic import BaseModel
-from chats.methods import search_properties
 from core.ai.prompt_manager import PromptManager
 import logging
 
@@ -16,7 +15,6 @@ class ChromaQuery(BaseModel):
     price_min: Optional[int] = None
     price_max: Optional[int] = None
     gender: Optional[str] = None
-
 
 
 def get_weather(city: str) -> str:
@@ -74,10 +72,10 @@ def search_properties_metadata(query: str) -> dict:
     logger.debug(f"Query Extracted: {extracted.json()}")
 
     where_clause = build_where_clause(extracted)
-    search = search_properties(extracted.query_text, where_clause)
+    # search = search_properties(extracted.query_text, where_clause)
 
     return {
-        "data": search,
+        # "data": search,
         "query_texts": [extracted.query_text],
-        "where": where_clause
+        "where": where_clause,
     }

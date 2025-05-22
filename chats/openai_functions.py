@@ -21,7 +21,7 @@ function_search_properties_schema = {
         "properties": {
             "criteria": {
                 "type": "string",
-                "description": "criteria can be city, province, price range, facilities, etc related to the property"
+                "description": "criteria can be (kosan, apartemen, rumah, dll)m city, province, price range, facilities, etc related to the property"
             }
         },
         "required": ["criteria"]
