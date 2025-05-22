@@ -55,3 +55,28 @@ class PromptManager:
         result = response.choices[0].message.model_dump()
         content = json.loads(result["content"])
         return content
+
+    def generate_structured_json_schema(self, schema):
+        function_schema = {
+            "name": "extract_data",
+            "description": "Extract structured data from the message.",
+            "parameters": schema.model_json_schema()
+        }
+
+        response = openai_client.chat.completions.create(
+            model=self.model,
+            messages=self.messages,
+            tools=[{
+                "type": "function",
+                "function": function_schema
+            }],
+            tool_choice="auto",
+            temperature=0.2
+        )
+
+        tool_calls = response.choices[0].message.tool_calls
+        if tool_calls:
+            args = json.loads(tool_calls[0].function.arguments)
+            return schema(**args)
+        else:
+            raise ValueError("No structured response generated.")

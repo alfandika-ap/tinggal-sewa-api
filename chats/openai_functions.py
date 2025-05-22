@@ -12,3 +12,18 @@ function_get_weather_schema = {
         "required": ["city"]
     }
 }
+
+function_search_properties_schema = {
+    "name": "search_properties",
+    "description": "Search for properties (kosan, apartemen, rumah, dll) based on the given criteria, criteria can be city, province, price, facilities, etc related to the property.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "criteria": {
+                "type": "string",
+                "description": "criteria can be city, province, price range, facilities, etc related to the property"
+            }
+        },
+        "required": ["criteria"]
+    }
+}

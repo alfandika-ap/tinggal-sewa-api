@@ -3,16 +3,19 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from chats.tools import get_weather
+# from chats.tools import get_weather
 from core.ai.prompt_manager import PromptManager
 from core.ai.tokenizer import count_token
-from chats.openai_functions import function_get_weather_schema
+from chats.openai_functions import function_get_weather_schema, function_search_properties_schema
 
 from django.contrib.auth.models import User
 
 from .models import ChatMessages
 
 import json
+import chromadb
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+import ast
 
 load_dotenv()
 
@@ -37,7 +40,7 @@ def handle_function_call(function_call):
     
     if name == "get_weather":
         city = arguments.get("city", "")
-        return get_weather(city)
+        return city
     return "Function tidak dikenali"
 
 
@@ -139,7 +142,7 @@ def stream_response(messages, user_info: User):
     pm = PromptManager()
     pm.add_message("system", system_prompt.format(user_info=json.dumps(ser_data)))
     pm.add_messages(messages)
-    response = pm.generate(stream=True, functions=[function_get_weather_schema])
+    response = pm.generate(stream=True, functions=[function_get_weather_schema, function_search_properties_schema])
 
     function_response = None
     function_name = None
@@ -186,4 +189,58 @@ def stream_response(messages, user_info: User):
         yield json.dumps({"type": "text", "data": "(no response)"})
 
     yield json.dumps({"type": "done"})
+
+
+def search_properties(query, where_condition):
+    """
+    Search for properties in ChromaDB using a text query.
+    
+    Args:
+        query (str): The search query
+        user_id (int): User ID for the request
+        metadata (dict, optional): Optional metadata filter criteria
+        
+    Returns:
+        dict: Search results
+    """
+    try:
+        # Connect to ChromaDB
+        chroma_client = chromadb.HttpClient(host="localhost", port=8010)
+        
+        # Get the collection
+        collection = chroma_client.get_collection(
+            name="kost",
+            embedding_function=ONNXMiniLM_L6_V2()
+        )
+        
+        results = collection.query(query_texts=[query], n_results=10, where=where_condition)
+        
+        # Process results
+        processed_results = []
+        if results and 'documents' in results and results['documents']:
+            for i, doc in enumerate(results['documents'][0]):
+                # Parse the document string into a dictionary
+                try:
+                    # The document is stored as a string representation of a dict
+                    kost_data = ast.literal_eval(doc)
+                    
+                    # Add metadata if available
+                    if 'metadatas' in results and results['metadatas'][0]:
+                        kost_data.update(results['metadatas'][0][i])
+                        
+                    processed_results.append(kost_data)
+                except (SyntaxError, ValueError) as e:
+                    print(f"Error parsing result: {e}")
+                    
+        return {
+            "success": True,
+            "count": len(processed_results),
+            "results": processed_results
+        }
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 

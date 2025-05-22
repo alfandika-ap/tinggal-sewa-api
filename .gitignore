@@ -53,4 +53,11 @@ htmlcov/
 .hypothesis/
 .coverage
 coverage.xml
-*.cover 
+*.cover
+
+# ChromaDB
+vectordata/
+vectordat/
+vectordata_backup/
+chroma.log
+chroma.sqlite3 
