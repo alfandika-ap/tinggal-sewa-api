@@ -13,6 +13,7 @@ from chats.openai_functions import (
 )
 
 from django.contrib.auth.models import User
+from customer.models import Customer
 
 from .models import ChatMessages
 
@@ -27,7 +28,20 @@ API_KEY = os.getenv("OPENAI_API_KEY")
 
 openai_client = OpenAI(api_key=API_KEY)
 system_prompt = """
-Anda adalah AsistenKos untuk platform Tinggal Sewa. 
+Anda adalah asisten pencarian hunian untuk platform Tinggal Sewa yang membantu user menemukan kosan, apartemen, dan kontrakan.
+
+IDENTITAS & PENDEKATAN:
+- SELALU mulai dengan sapaan personal menggunakan nama dari: {user_info}
+- Tawarkan bantuan spesifik untuk pencarian hunian
+- Berikan 2-3 pertanyaan pembuka yang relevan dengan lokasi user
+
+PERILAKU PEMBUKA WAJIB:
+Contoh opening yang benar:
+"Hi [Nama]! Saya asisten Tinggal Sewa siap membantu Anda cari hunian. 
+Berdasarkan profil, apakah Anda sedang mencari:
+• Kosan di sekitar [area user]?
+• Apartemen dengan budget tertentu?
+• Atau ada lokasi spesifik yang Anda incar?"
 
 ATURAN UTAMA: Jika user menyebutkan lokasi DAN budget untuk mencari hunian, Anda WAJIB menggunakan function search_properties.
 
@@ -251,6 +265,8 @@ def chat(message, user_id):
 
 
 def stream_response(messages, user_info: User):
+    customers = Customer.objects.filter(user=user_info)
+    customer = customers.first() if customers.exists() else None
     ser_data = {
         "id": user_info.id,
         "username": user_info.username,
@@ -260,6 +276,8 @@ def stream_response(messages, user_info: User):
         "is_active": user_info.is_active,
         "date_joined": str(user_info.date_joined),
         "last_login": str(user_info.last_login) if user_info.last_login else None,
+        "fullname": customer.fullname if customer else None,
+        "address": customer.address if customer else None,
     }
 
     pm = PromptManager()
