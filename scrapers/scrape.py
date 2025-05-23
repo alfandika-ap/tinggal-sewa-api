@@ -8,11 +8,22 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
 import asyncio
-from crawl4ai import AsyncWebCrawler
+from crawl4ai import AsyncWebCrawler, ProxyConfig, BrowserConfig
 from core.ai.scraper import client
+from core.ai.proxy import get_proxy_config
 from scrapers.models import KostList, Kost
 import chromadb
 from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+
+proxy_data = get_proxy_config()
+
+proxy_config = ProxyConfig(
+    server=proxy_data["server"],
+    username=proxy_data["username"],
+    password=proxy_data["password"]
+)
+
+config = BrowserConfig(proxy_config=proxy_config)
 
 async def main():
     chroma = await chromadb.AsyncHttpClient("localhost", 8010)
@@ -31,7 +42,7 @@ async def main():
         embedding_function=ONNXMiniLM_L6_V2(),
     )
 
-    async with AsyncWebCrawler() as crawler:
+    async with AsyncWebCrawler(config=config) as crawler:
         # 1. Scrape halaman list untuk dapatkan list kost dan URL detail-nya
         list_page_url = "https://www.cari-kos.com/search/kos/jawa-timur/kota-malang?price-from=0&price-to=10000000"
         list_result = await crawler.arun(url=list_page_url)
