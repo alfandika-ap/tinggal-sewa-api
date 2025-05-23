@@ -8,12 +8,12 @@ class Kost(BaseModel):
     province: str
     description: str
     price: float
-    facilities: str
-    rules: str
+    facilities: list[str]
+    rules: list[str]
     contact: str
     url: str
     image_url: Optional[str] 
-    gender: Optional[str] = None
+    gender: str
 
 
 class KostList(BaseModel):
