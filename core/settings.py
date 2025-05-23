@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "customer",
     "chats",
     "scrapers",
+    "huey.contrib.djhuey",
 ]
 
 MIDDLEWARE = [
