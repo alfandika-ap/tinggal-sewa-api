@@ -2,6 +2,7 @@ from typing import Optional, Dict
 from pydantic import BaseModel
 from core.ai.prompt_manager import PromptManager
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,9 @@ def get_weather(city: str) -> str:
 def build_where_clause(query: ChromaQuery) -> Optional[Dict]:
     filters = []
     if query.city:
-        filters.append({"city": {"$eq": query.city}})
+        filters.append({"city": {"$eq": query.city.lower()}})
     if query.province:
-        filters.append({"province": {"$eq": query.province}})
+        filters.append({"province": {"$eq": query.province.lower()}})
     if query.address:
         filters.append({"address": {"$eq": query.address}})
     if query.price_min is not None:
@@ -46,14 +47,14 @@ def search_properties_metadata(query: str) -> dict:
     {
         "query_text": "Buat versi query yang lebih bermakna dan deskriptif secara semantik dari pertanyaan asli.",
         "title": "Kost di Jakarta Pusat khusus pria atau wanita peremuan dan secara detailnya",
-        "city": "Jakarta Pusat",
-        "province": "DKI Jakarta",
+        "city": "Jakarta Pusat", lowercase 
+        "province": "DKI Jakarta", 
         "address": null,
-        "price_min": 1000000,
-        "price_max": 2000000,
+        
         "gender": "pria" atau "wanita" lowercase
     }
 
+    "province" harus berupa nama provinsi lengkap, contoh "jatim" tolong buat jadi "jawa timur" lalu lowercase 
     Semua nilai opsional boleh null jika tidak disebut. 
     "price_min" dan "price_max" harus berupa angka (jika ada). 
     "query_text" WAJIB lebih semantik daripada pertanyaan asli.
@@ -62,6 +63,7 @@ def search_properties_metadata(query: str) -> dict:
     pm = PromptManager()
     pm.add_message("system", system_prompt)
     pm.add_message("user", f"Pertanyaan: {query}")
+
 
     try:
         extracted: ChromaQuery = pm.generate_structured_json_schema(ChromaQuery)
@@ -73,9 +75,21 @@ def search_properties_metadata(query: str) -> dict:
 
     where_clause = build_where_clause(extracted)
     # search = search_properties(extracted.query_text, where_clause)
+    results = {
+        "query_texts": [extracted.query_text],
+        "where": where_clause,
+    }
+
+    pm_summary = PromptManager()
+    pm_summary.add_message("system", "Kamu adalah assistent untuk follow up hasil dari query yang diberikan. Kamu harus membuat summary netral karena mungkin datanya bisa kosong juga dan jangan ada kata tunggu soalnya result nya sudah ada yang singkat dan padat dan userfriendly mungkin. ")
+    pm_summary.add_message("user", f" query ini: {json.dumps(results)}")
+    assistant_summary = pm_summary.generate()     
 
     return {
         # "data": search,
         "query_texts": [extracted.query_text],
         "where": where_clause,
+        "summary": assistant_summary,
     }
+
+

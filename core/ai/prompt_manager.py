@@ -44,8 +44,18 @@ class PromptManager:
         if stream:
             return response
         else:
-            content = response.choices[0].message.content
-            return content
+            message = response.choices[0].message
+            if message.tool_calls:
+                tool_call = message.tool_calls[0]
+                return {
+                    "type": "function_call",
+                    "name": tool_call.function.name,
+                    "arguments": json.loads(tool_call.function.arguments)
+                }
+            elif message.content:
+                return  message.content
+            else:
+                return ""
 
     def generate_structured(self, schema):
         response = openai_client.beta.chat.completions.parse(
