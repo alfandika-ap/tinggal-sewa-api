@@ -1,13 +1,15 @@
 from django.contrib.auth.models import User
-from django.shortcuts import render
-from rest_framework import status
+from django.shortcuts import render, get_object_or_404
+from rest_framework import status, viewsets, filters
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import Kost, Bookmark
 from .serializers import (CustomerLoginSerializer, CustomerRegisterSerializer,
-                          CustomerSerializer)
+                          CustomerSerializer, KostSerializer, BookmarkSerializer)
 
 
 class CustomerRegisterView(APIView):
@@ -66,3 +68,64 @@ class CustomerProfileView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         print("Serializer errors:", serializer.errors)  # Debug log
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BookmarkViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing bookmarks
+    """
+    serializer_class = BookmarkSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Return only bookmarks belonging to the authenticated user
+        return Bookmark.objects.filter(user=self.request.user)
+    
+    def create(self, request):
+        """
+        Create a bookmark with kost data
+        """
+        # Extract kost data from request
+        kost_data = {
+            'title': request.data.get('title'),
+            'address': request.data.get('address'),
+            'city': request.data.get('city'),
+            'province': request.data.get('province'),
+            'description': request.data.get('description'),
+            'price': float(request.data.get('price')),
+            'contact': request.data.get('contact'),
+            'url': request.data.get('url'),
+            'gender': request.data.get('gender')
+        }
+        
+        # Handle optional fields
+        if 'image_url' in request.data:
+            kost_data['image_url'] = request.data.get('image_url')
+        
+        # Get facilities and rules
+        facilities = request.data.get('facilities', [])
+        rules = request.data.get('rules', [])
+        
+        # Create the kost
+        kost = Kost.objects.create(**kost_data)
+        kost.set_facilities(facilities)
+        kost.set_rules(rules)
+        kost.save()
+        
+        # Check if bookmark already exists
+        if Bookmark.objects.filter(user=request.user, kost=kost).exists():
+            return Response({'error': 'A similar kost is already bookmarked'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the bookmark
+        bookmark = Bookmark.objects.create(
+            user=request.user,
+            kost=kost
+        )
+        
+        # Return the bookmark data
+        serializer = self.get_serializer(bookmark)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# KostViewSet removed as requested
