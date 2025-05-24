@@ -62,9 +62,10 @@ Backend service for the Tinggal Sewa application - a property rental platform.
    python manage.py migrate
    ```
 
-5. Run the development server
+5. Run the development server and chroma
    ```
    python manage.py runserver
+   chroma run --port 8010 --path ./vectordata
    ```
 
 The API will be available at `http://127.0.0.1:8000/`.
