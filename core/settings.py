@@ -33,7 +33,8 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '103.82.92.90',
-    'api.tinggalsewa.biz.id'
+    'api.tinggalsewa.biz.id',
+    'tinggalsewa.biz.id'
 ]
 
 
